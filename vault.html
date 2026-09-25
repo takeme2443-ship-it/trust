@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Vault | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 pb-32">
+    <div id="header-container"></div>
+    <main class="max-w-md mx-auto px-6 pt-8">
+        <div id="vault-items" class="grid grid-cols-2 gap-4">
+            <!-- Items hydrate here -->
+        </div>
+    </main>
+    <div id="nav-container"></div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { renderHeader, renderBottomNav, renderEmptyState } from './components.js';
+
+        document.getElementById('header-container').innerHTML = renderHeader('Secure Vault', true);
+        document.getElementById('nav-container').innerHTML = renderBottomNav('settings');
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                const q = query(collection(db, "kyc"), where("uid", "==", user.uid));
+                const snap = await getDocs(q);
+                const cont = document.getElementById('vault-items');
+                if (snap.empty) { cont.innerHTML = renderEmptyState("Vault is empty."); return; }
+                
+                cont.innerHTML = snap.docs.map(doc => {
+                    const k = doc.data();
+                    return `
+                        <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+                            <img src="${k.documentImage}" class="w-full h-32 object-cover rounded-2xl mb-3">
+                            <p class="text-[10px] font-black uppercase text-[#002147] tracking-tighter">${k.documentType}</p>
+                        </div>
+                    `;
+                }).join('');
+            }
+        });
+    </script>
+</body>
+</html>

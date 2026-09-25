@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-md w-full bg-white tb-card p-10 text-center">
+        <h1 class="text-2xl font-black text-[#002147] mb-4">Verify Your Email</h1>
+        <p class="text-slate-500 text-sm mb-8 leading-relaxed">We've sent a verification link to your email. Please click it to activate your account features.</p>
+        
+        <button id="resend-btn" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-[#002147] mb-6">Resend Verification Email</button>
+        
+        <div class="pt-6 border-t border-slate-100 mt-4">
+            <p class="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] animate-pulse">Waiting for verification...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth } from './firebase-config.js';
+        import { sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { showToast } from './toast.js';
+
+        document.getElementById('resend-btn').addEventListener('click', async () => {
+            try {
+                await sendEmailVerification(auth.currentUser);
+                showToast("Verification email sent!");
+            } catch (error) {
+                showToast(error.message, "error");
+            }
+        });
+
+        // Simple poll for verification status
+        setInterval(() => {
+            auth.currentUser?.reload().then(() => {
+                if (auth.currentUser?.emailVerified) {
+                    window.location.href = "dashboard.html";
+                }
+            });
+        }, 3000);
+    </script>
+</body>
+</html>

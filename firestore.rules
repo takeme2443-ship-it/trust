@@ -1,0 +1,133 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- HELPER FUNCTIONS ---
+
+    // Checks if the user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Checks if the document belongs to the requesting user
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // VERSION A: Role-based check (Checks the users/{uid} document)
+    // Note: This costs 1 extra read per request.
+    function isAdmin() {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // --- COLLECTION RULES ---
+
+    // 1. User Profiles
+    match /users/{uid} {
+      // Admins can see everyone. Users can see their own profile.
+      allow read: if isAdmin() || isOwner(uid);
+      
+      // Prevents users from making themselves admins or changing their KYC status manually.
+      allow create: if isOwner(uid) && 
+        request.resource.data.role == 'customer' && 
+        request.resource.data.kycStatus == 'NONE';
+      
+      // Owners can update profile photo or PIN hash.
+      // Owners CANNOT update their role, email, or KYC status.
+      allow update: if isAdmin() || (
+        isOwner(uid) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'kycStatus', 'email']) &&
+        request.resource.data.pinHash is string
+      );
+
+      // Client-side deletion is strictly forbidden.
+      allow delete: if false;
+    }
+
+    // 2. Bank Accounts
+    match /accounts/{accountNumber} {
+      // Users can see their own account details. 
+      // Admin can see everything.
+      allow read: if isAdmin() || isOwner(resource.data.ownerUid);
+
+      // Allows users to verify if a recipient account exists for transfers.
+      // Note: In a production environment, use a Cloud Function for this 
+      // to avoid exposing 'ownerUid' to the public.
+      allow get: if isSignedIn(); 
+
+      // Users can create their account at signup. 
+      // Must start with 0 balances and be assigned to themselves.
+      allow create: if isSignedIn() && 
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.availableBalance == 0 &&
+        request.resource.data.totalBalance == 0;
+
+      // Only admins can modify balance fields. 
+      // Users can change account status (e.g., freezing their card) 
+      // but NOT balances.
+      allow update: if isAdmin() || (
+        isOwner(resource.data.ownerUid) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['availableBalance', 'totalBalance', 'savingsBalance'])
+      );
+
+      allow delete: if false;
+    }
+
+    // 3. Financial Requests (Deposits, Withdrawals, Transfers)
+    // Protects against users trying to create already-approved requests.
+    match /deposits/{id} {
+      allow create: if isSignedIn() && isOwner(request.resource.data.uid) && request.resource.data.status == 'PENDING';
+      allow read: if isAdmin() || isOwner(resource.data.uid);
+      allow update: if isAdmin(); // Only Admin can change status or declineReason
+      allow delete: if false;
+    }
+
+    match /withdrawals/{id} {
+      allow create: if isSignedIn() && isOwner(request.resource.data.uid) && request.resource.data.status == 'PENDING';
+      allow read: if isAdmin() || isOwner(resource.data.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /transfers/{id} {
+      allow create: if isSignedIn() && isOwner(request.resource.data.uid) && request.resource.data.status == 'PENDING';
+      allow read: if isAdmin() || isOwner(resource.data.uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // 4. KYC Documents
+    match /kyc/{uid} {
+      // Only the owner or an admin can see sensitive ID documents.
+      allow read: if isAdmin() || isOwner(uid);
+      
+      // Users submit their doc with PENDING status.
+      allow create: if isOwner(uid) && request.resource.data.status == 'PENDING';
+      
+      // Users can re-submit if declined, but only to PENDING status.
+      // Admins handle actual approval.
+      allow update: if isAdmin() || (isOwner(uid) && request.resource.data.status == 'PENDING');
+      
+      allow delete: if false;
+    }
+
+    // 5. Ledger / Transaction History
+    match /transactions/{id} {
+      // Users can only view their own itemized history.
+      allow read: if isAdmin() || isOwner(resource.data.uid);
+      
+      // Client-side writes are blocked.
+      // This forces the Admin Portal to use secure Transactions or Cloud Functions
+      // to ensure balance updates and ledger writes happen simultaneously.
+      // If the admin-portal.html writes directly, 'isAdmin()' allows it.
+      allow write: if isAdmin();
+    }
+
+    // Default deny for any unspecified collections
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trust Bank | Secure Digital Banking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Navbar -->
+    <nav class="flex items-center justify-between px-6 py-5 bg-white border-b border-slate-100">
+        <div class="flex items-center gap-2">
+            <div class="w-10 h-10 bg-[#002147] rounded-xl flex items-center justify-center">
+                <span class="text-[#D4AF37] font-black text-xl">TB</span>
+            </div>
+            <span class="font-black text-[#002147] tracking-tight text-xl">Trust Bank</span>
+        </div>
+        <div class="flex gap-4">
+            <a href="login.html" class="text-sm font-bold text-slate-600 hover:text-[#002147] px-4 py-2">Login</a>
+            <a href="register.html" class="text-sm font-black bg-[#002147] text-white px-6 py-2.5 rounded-full shadow-lg shadow-navy-900/20 hover:scale-105 transition-transform">Open Account</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <header class="pt-20 pb-32 px-6 max-w-4xl mx-auto text-center">
+        <span class="inline-block px-4 py-1.5 mb-6 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black tracking-widest uppercase border border-emerald-100">Now Global in 3 Currencies</span>
+        <h1 class="text-5xl md:text-7xl font-black text-[#002147] mb-8 leading-tight tracking-tighter">Banking built on <span class="text-[#D4AF37]">absolute trust.</span></h1>
+        <p class="text-slate-500 text-lg mb-10 max-w-xl mx-auto leading-relaxed">Experience a premium, multi-currency banking platform designed for security, speed, and complete control over your wealth.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="register.html" class="bg-[#002147] text-white px-10 py-5 rounded-2xl font-black text-lg shadow-xl hover:bg-[#001a3d] transition-all">Get Started Today</a>
+            <a href="#features" class="bg-white border border-slate-200 text-[#002147] px-10 py-5 rounded-2xl font-black text-lg hover:bg-slate-50 transition-all">How it Works</a>
+        </div>
+    </header>
+
+    <!-- Features -->
+    <section id="features" class="px-6 py-20 bg-white border-y border-slate-100">
+        <div class="max-w-6xl mx-auto grid md:grid-cols-3 gap-12">
+            <div class="space-y-4">
+                <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-[#002147] text-2xl">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h3 class="font-black text-xl text-[#002147]">Vault Security</h3>
+                <p class="text-slate-500 leading-relaxed">Multi-layered encryption and 2FA keep your assets safe. Your security is our primary focus.</p>
+            </div>
+            <div class="space-y-4">
+                <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-[#D4AF37] text-2xl">
+                    <i class="fa-solid fa-globe"></i>
+                </div>
+                <h3 class="font-black text-xl text-[#002147]">Global Transfers</h3>
+                <p class="text-slate-500 leading-relaxed">Send money instantly across USD, EUR, and GBP with the most competitive rates in the market.</p>
+            </div>
+            <div class="space-y-4">
+                <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-600 text-2xl">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <h3 class="font-black text-xl text-[#002147]">Real-time Tracking</h3>
+                <p class="text-slate-500 leading-relaxed">Full transparency with real-time notifications and an itemized ledger for every single penny.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-20 px-6 border-t border-slate-100">
+        <div class="max-w-4xl mx-auto flex flex-col items-center">
+            <div class="flex items-center gap-2 mb-8">
+                <div class="w-8 h-8 bg-[#002147] rounded-lg flex items-center justify-center">
+                    <span class="text-[#D4AF37] font-black text-sm">TB</span>
+                </div>
+                <span class="font-black text-[#002147] tracking-tight uppercase text-sm">Trust Bank</span>
+            </div>
+            <div class="flex gap-8 mb-10">
+                <a href="terms.html" class="text-slate-400 text-xs font-bold uppercase tracking-widest hover:text-[#D4AF37]">Terms</a>
+                <a href="support.html" class="text-slate-400 text-xs font-bold uppercase tracking-widest hover:text-[#D4AF37]">Support</a>
+                <a href="login.html" class="text-slate-400 text-xs font-bold uppercase tracking-widest hover:text-[#D4AF37]">Login</a>
+            </div>
+            <p class="text-slate-400 text-[10px] uppercase font-bold tracking-[0.2em]">&copy; 2024 Trust Bank Digital. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>

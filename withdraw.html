@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdraw | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 pb-32">
+    <div id="header-container"></div>
+    <main class="max-w-md mx-auto px-6 pt-8">
+        
+        <!-- Admin Approval Notice -->
+        <div class="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3 items-start">
+            <i class="fa-solid fa-shield-halved text-amber-600 mt-1"></i>
+            <div>
+                <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest">Security Protocol</p>
+                <p class="text-xs font-bold text-amber-800">Withdrawals are held for 24h pending Admin Audit for account security.</p>
+            </div>
+        </div>
+
+        <div id="status-banner-container"></div>
+
+        <form id="withdraw-form" class="space-y-6">
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
+                <div class="mb-8">
+                    <label>Amount to Withdraw</label>
+                    <input type="number" id="amount" class="w-full" placeholder="0.00" required>
+                </div>
+                <div class="mb-8">
+                    <label>Bank / Wallet Details</label>
+                    <textarea id="details" class="w-full h-32 py-4" placeholder="Enter Full Payout Details..." required></textarea>
+                </div>
+            </div>
+            <button type="submit" id="submit-btn" class="w-full btn-primary h-16 uppercase tracking-widest text-xs">Request Admin Release</button>
+        </form>
+
+        <div id="success-view" class="hidden"></div>
+    </main>
+    <div id="nav-container"></div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { renderHeader, renderBottomNav, renderDeclinedBanner, renderApprovedSuccess } from './components.js';
+        import { formatCurrency } from './utils.js';
+        import { withPin } from './pin-guard.js';
+
+        document.getElementById('header-container').innerHTML = renderHeader('Withdraw', true);
+        document.getElementById('nav-container').innerHTML = renderBottomNav('dashboard');
+
+        const form = document.getElementById('withdraw-form');
+        const bannerCont = document.getElementById('status-banner-container');
+        const successCont = document.getElementById('success-view');
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                const q = query(collection(db, "withdrawals"), where("uid", "==", user.uid), orderBy("createdAt", "desc"), limit(1));
+                onSnapshot(q, (snap) => {
+                    if (snap.empty) return;
+                    const d = snap.docs[0].data();
+                    bannerCont.innerHTML = "";
+                    form.classList.remove('hidden');
+                    successCont.classList.add('hidden');
+                    
+                    if (d.status === "PENDING") {
+                        form.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true);
+                        document.getElementById('submit-btn').innerText = "Release Pending Approval...";
+                    } else if (d.status === "DECLINED") {
+                        bannerCont.innerHTML = renderDeclinedBanner(d.declineReason);
+                        form.querySelectorAll('input, textarea, button').forEach(el => el.disabled = false);
+                        document.getElementById('submit-btn').innerText = "Re-request Release";
+                    } else if (d.status === "APPROVED") {
+                        form.classList.add('hidden');
+                        successCont.classList.remove('hidden');
+                        successCont.innerHTML = renderApprovedSuccess(`Withdrawal of ${formatCurrency(d.amount)} released.`, () => location.reload());
+                    }
+                });
+            }
+        });
+
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            withPin(async () => {
+                const btn = document.getElementById('submit-btn');
+                btn.disabled = true;
+                await addDoc(collection(db, "withdrawals"), {
+                    uid: auth.currentUser.uid,
+                    amount: parseFloat(document.getElementById('amount').value),
+                    details: document.getElementById('details').value,
+                    status: "PENDING",
+                    createdAt: serverTimestamp()
+                });
+            });
+        };
+    </script>
+</body>
+</html>

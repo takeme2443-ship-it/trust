@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set PIN | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-6">
+    <div class="max-w-md w-full bg-white tb-card p-10 text-center">
+        <div class="w-16 h-16 bg-[#002147] text-[#D4AF37] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-navy-900/20">
+            <i class="fa-solid fa-lock text-2xl"></i>
+        </div>
+        <h1 class="text-2xl font-black text-[#002147] mb-2 tracking-tight">Security PIN</h1>
+        <p class="text-slate-400 text-sm mb-10">Set a 4-6 digit code to authorize transactions.</p>
+
+        <form id="pin-form" class="space-y-8">
+            <div>
+                <label>Create PIN</label>
+                <input type="password" id="pin" class="text-center text-3xl tracking-[1em]" maxlength="6" pattern="[0-9]*" inputmode="numeric" required>
+            </div>
+            <div>
+                <label>Confirm PIN</label>
+                <input type="password" id="confirmPin" class="text-center text-3xl tracking-[1em]" maxlength="6" pattern="[0-9]*" inputmode="numeric" required>
+            </div>
+            <button type="submit" id="submit-btn" class="w-full btn-primary h-16 text-lg">Save Secure PIN</button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { hashPin } from './utils.js';
+        import { showToast } from './toast.js';
+
+        document.getElementById('pin-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const pin = document.getElementById('pin').value;
+            const confirm = document.getElementById('confirmPin').value;
+
+            if (pin !== confirm) return showToast("PINs do not match", "error");
+            if (pin.length < 4) return showToast("Min 4 digits", "error");
+
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerText = "Hashing...";
+
+            try {
+                const hashed = await hashPin(pin);
+                await updateDoc(doc(db, "users", auth.currentUser.uid), { pinHash: hashed });
+                showToast("PIN set successfully!");
+                setTimeout(() => window.location.href = "dashboard.html", 1000);
+            } catch (err) {
+                showToast(err.message, "error");
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>

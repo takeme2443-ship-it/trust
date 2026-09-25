@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 pb-32">
+    <div id="header-container"></div>
+    <main class="max-w-md mx-auto px-6 pt-8 space-y-4" id="notification-list">
+        <!-- Skeleton -->
+        <div class="animate-pulse flex items-start gap-4 p-5 bg-white rounded-3xl">
+            <div class="w-10 h-10 bg-slate-100 rounded-full"></div>
+            <div class="space-y-2 flex-1">
+                <div class="h-3 bg-slate-100 rounded w-1/4"></div>
+                <div class="h-4 bg-slate-50 rounded w-full"></div>
+            </div>
+        </div>
+    </main>
+    <div id="nav-container"></div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { renderHeader, renderBottomNav, renderEmptyState } from './components.js';
+        import { formatDate } from './utils.js';
+
+        document.getElementById('header-container').innerHTML = renderHeader('Alerts', true);
+        document.getElementById('nav-container').innerHTML = renderBottomNav('notifications');
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                const q = query(collection(db, "notifications"), 
+                          where("uid", "in", [user.uid, "all"]), 
+                          orderBy("timestamp", "desc"));
+                
+                onSnapshot(q, snap => {
+                    const cont = document.getElementById('notification-list');
+                    if (snap.empty) { cont.innerHTML = renderEmptyState("No alerts at this time."); return; }
+                    
+                    cont.innerHTML = snap.docs.map(dDoc => {
+                        const n = dDoc.data();
+                        const icon = n.type === 'ALERT' ? 'fa-triangle-exclamation text-rose-500' : 'fa-circle-info text-blue-500';
+                        return `
+                            <div class="flex items-start gap-4 p-5 ${n.read ? 'bg-white opacity-60' : 'bg-white shadow-sm border border-slate-100'} rounded-3xl transition-opacity">
+                                <div class="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center shrink-0">
+                                    <i class="fa-solid ${icon}"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-wider">${n.type || 'SYSTEM'}</p>
+                                        <p class="text-[8px] font-bold text-slate-300">${formatDate(n.timestamp)}</p>
+                                    </div>
+                                    <p class="text-xs text-[#002147] font-bold leading-relaxed">${n.message}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

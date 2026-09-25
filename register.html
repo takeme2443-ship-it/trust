@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Account | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .strength-bar { height: 4px; transition: all 0.3s; width: 0%; border-radius: 2px; }
+        .strength-weak { width: 33%; background: #ef4444; }
+        .strength-medium { width: 66%; background: #f59e0b; }
+        .strength-strong { width: 100%; background: #10b981; }
+    </style>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-6">
+    <div class="max-w-md w-full bg-white tb-card p-10">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-black text-[#002147] mb-2 tracking-tight">Open Your Account</h1>
+            <p class="text-slate-400 font-medium text-sm">Start your premium banking journey</p>
+        </div>
+
+        <form id="register-form" class="space-y-6">
+            <div>
+                <label for="fullName">Full Legal Name</label>
+                <input type="text" id="fullName" class="w-full" placeholder="Johnathan Doe" required>
+            </div>
+            <div>
+                <label for="email">Email Address</label>
+                <input type="email" id="email" class="w-full" placeholder="name@email.com" required>
+            </div>
+            <div>
+                <label for="currency">Account Base Currency</label>
+                <select id="currency" class="w-full" required>
+                    <option value="USD">US Dollar ($)</option>
+                    <option value="EUR">Euro (€)</option>
+                    <option value="GBP">British Pound (£)</option>
+                </select>
+            </div>
+            <div>
+                <label for="password">Password</label>
+                <input type="password" id="password" class="w-full" placeholder="••••••••" required>
+                <div class="mt-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div id="strength-meter" class="strength-bar"></div>
+                </div>
+                <p id="strength-text" class="text-[9px] font-black uppercase mt-1 text-slate-400 tracking-widest">Strength: None</p>
+            </div>
+            <div>
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" class="w-full" placeholder="••••••••" required>
+                <p id="match-error" class="text-[10px] font-bold text-rose-500 mt-1 hidden">Passwords do not match</p>
+            </div>
+            <div class="flex items-center gap-3 py-2">
+                <input type="checkbox" id="terms" class="w-5 h-5 rounded border-slate-200" required>
+                <label for="terms" class="mb-0 normal-case font-medium text-xs text-slate-500">I agree to the <a href="terms.html" class="text-[#002147] font-bold underline">Terms & Conditions</a></label>
+            </div>
+            
+            <button type="submit" id="submit-btn" class="w-full btn-primary h-14 text-lg">Create Account</button>
+        </form>
+
+        <p class="text-center mt-8 text-sm font-medium text-slate-400">
+            Already a member? <a href="login.html" class="text-[#002147] font-black uppercase text-[10px] tracking-wider ml-1">Login</a>
+        </p>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { showToast } from './toast.js';
+        import { saveSession } from './session.js';
+
+        const registerForm = document.getElementById('register-form');
+        const passwordInput = document.getElementById('password');
+        const confirmInput = document.getElementById('confirmPassword');
+        const strengthMeter = document.getElementById('strength-meter');
+        const strengthText = document.getElementById('strength-text');
+        const matchError = document.getElementById('match-error');
+        const submitBtn = document.getElementById('submit-btn');
+
+        let currentStrength = "none";
+
+        passwordInput.oninput = () => {
+            const val = passwordInput.value;
+            let score = 0;
+            if (val.length > 6) score++;
+            if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+
+            strengthMeter.className = "strength-bar";
+            if (score <= 1) { strengthText.innerText = "Strength: Weak"; currentStrength = "weak"; strengthMeter.className = "strength-bar strength-weak"; }
+            else if (score === 2) { strengthText.innerText = "Strength: Medium"; currentStrength = "medium"; strengthMeter.className = "strength-bar strength-medium"; }
+            else { strengthText.innerText = "Strength: Strong"; currentStrength = "strong"; strengthMeter.className = "strength-bar strength-strong"; }
+        };
+
+        const createAccountInDb = async (uid, email, fullName, currency) => {
+            // Generate unique 10-digit account ID
+            const accNum = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+            
+            // 1. Create User Document
+            await setDoc(doc(db, "users", uid), {
+                uid, fullName, email,
+                accountNumber: accNum,
+                authProvider: "password",
+                role: "customer",
+                status: "active",
+                kycStatus: "NONE",
+                balance: 0,
+                createdAt: serverTimestamp()
+            });
+
+            // 2. Create Core Banking Account
+            await setDoc(doc(db, "accounts", accNum), {
+                accountNumber: accNum,
+                ownerUid: uid,
+                currency,
+                availableBalance: 0,
+                totalBalance: 0,
+                savingsBalance: 0,
+                accountType: "Individual",
+                status: "active",
+                createdAt: serverTimestamp()
+            });
+
+            saveSession({ uid, fullName, accNum });
+            window.location.href = "set-pin.html";
+        };
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            matchError.classList.add('hidden');
+
+            const emailValue = document.getElementById('email').value;
+            const passValue = passwordInput.value;
+
+            if (passValue !== confirmInput.value) {
+                matchError.classList.remove('hidden');
+                return;
+            }
+
+            if (currentStrength === "weak") {
+                showToast("Password is too weak", "error");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, emailValue, passValue);
+                await createAccountInDb(userCredential.user.uid, emailValue, document.getElementById('fullName').value, document.getElementById('currency').value);
+            } catch (error) {
+                showToast(error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Create Account';
+            }
+        });
+    </script>
+</body>
+</html>

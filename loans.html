@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loans & Credit | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 pb-32">
+    <div id="header-container"></div>
+    <main class="max-w-md mx-auto px-6 pt-8 space-y-8">
+        <section class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-navy-900/5">
+            <h3 class="text-xs font-black uppercase tracking-[0.2em] text-[#002147] mb-6">Request a Loan</h3>
+            <form id="loan-form" class="space-y-6">
+                <div>
+                    <label>Loan Amount</label>
+                    <input type="number" id="loan-amount" class="w-full" placeholder="500.00" min="500" required>
+                </div>
+                <div>
+                    <label>Repayment Term</label>
+                    <select id="loan-term" class="w-full">
+                        <option value="6 Months">6 Months (5.5% Int.)</option>
+                        <option value="12 Months">12 Months (7.2% Int.)</option>
+                        <option value="24 Months">24 Months (9.0% Int.)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Loan Purpose</label>
+                    <input type="text" id="loan-purpose" class="w-full" placeholder="e.g. Home Renovation" required>
+                </div>
+                <button type="submit" id="submit-btn" class="w-full btn-primary h-16 shadow-xl shadow-navy-900/20">Submit Application</button>
+            </form>
+        </section>
+
+        <section>
+            <h3 class="text-xs font-black uppercase tracking-[0.2em] text-[#002147] mb-6">Application History</h3>
+            <div id="loan-history" class="space-y-4"></div>
+        </section>
+    </main>
+    <div id="nav-container"></div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { renderHeader, renderBottomNav, renderStatusBadge, renderEmptyState } from './components.js';
+        import { formatCurrency, formatDate } from './utils.js';
+        import { showToast } from './toast.js';
+
+        document.getElementById('header-container').innerHTML = renderHeader('Loans & Credit', true);
+        document.getElementById('nav-container').innerHTML = renderBottomNav('dashboard');
+
+        document.getElementById('loan-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
+
+            try {
+                await addDoc(collection(db, "loans"), {
+                    uid: auth.currentUser.uid,
+                    amount: parseFloat(document.getElementById('loan-amount').value),
+                    term: document.getElementById('loan-term').value,
+                    purpose: document.getElementById('loan-purpose').value,
+                    status: "PENDING",
+                    createdAt: serverTimestamp()
+                });
+                showToast("Loan application submitted successfully.", "success");
+                document.getElementById('loan-form').reset();
+            } catch (err) {
+                showToast(err.message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Submit Application';
+            }
+        };
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                const q = query(collection(db, "loans"), where("uid", "==", user.uid), orderBy("createdAt", "desc"));
+                onSnapshot(q, snap => {
+                    const cont = document.getElementById('loan-history');
+                    if (snap.empty) { cont.innerHTML = renderEmptyState("No applications found."); return; }
+                    cont.innerHTML = snap.docs.map(doc => {
+                        const l = doc.data();
+                        return `
+                            <div class="bg-white p-5 rounded-3xl border border-slate-100 flex justify-between items-center">
+                                <div>
+                                    <p class="font-black text-[#002147]">${formatCurrency(l.amount)}</p>
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase">${l.term} • ${l.purpose}</p>
+                                </div>
+                                ${renderStatusBadge(l.status)}
+                            </div>
+                        `;
+                    }).join('');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

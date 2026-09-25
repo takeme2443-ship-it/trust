@@ -1,0 +1,454 @@
+--- START OF FILE dashboard.html ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Dashboard | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+        
+        /* Ticker Styling */
+        @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .ticker-wrap { overflow: hidden; background: #001a3d; border-bottom: 1px solid #D4AF37; }
+        .ticker { display: flex; width: 200%; animation: ticker 30s linear infinite; }
+        .ticker-item { white-space: nowrap; padding: 10px 40px; font-size: 10px; font-weight: 900; color: #f8fafc; text-transform: uppercase; }
+        .ticker-item span { color: #D4AF37; margin-left: 8px; }
+
+        .sparkline { stroke: #D4AF37; stroke-width: 2; fill: none; }
+        .crypto-sparkline { stroke: #10b981; stroke-width: 2; fill: none; }
+
+        /* Modern Glass Card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+
+        /* --- CHAT DOCK --- */
+        #user-chat-dock {
+            position: fixed;
+            bottom: 90px; 
+            right: 20px;
+            width: 340px;
+            height: 500px;
+            background: white;
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .chat-header { background: #002147; color: #D4AF37; padding: 18px; display: flex; justify-content: space-between; align-items: center; }
+        .msg-user { background: #002147; color: white; align-self: flex-end; border-radius: 18px 18px 4px 18px; }
+        .msg-admin { background: #f1f5f9; color: #1e293b; align-self: flex-start; border-radius: 18px 18px 18px 4px; }
+        .msg-bubble { padding: 12px 16px; font-size: 13px; max-width: 85%; line-height: 1.5; margin-bottom: 4px; }
+        .chat-input-area { padding: 16px; border-top: 1px solid #f1f5f9; display: flex; gap: 10px; background: white; }
+
+        /* Hidden balance state */
+        .balance-hidden { filter: blur(8px); cursor: pointer; user-select: none; }
+    </style>
+</head>
+<body class="pb-32">
+
+    <!-- Global Market Ticker -->
+    <div class="ticker-wrap fixed top-0 w-full z-[100]">
+        <div class="ticker">
+            <div class="ticker-item">EUR/USD <span id="eur-usd">0.92 ▲</span></div>
+            <div class="ticker-item">GBP/USD <span id="gbp-usd">1.27 ▼</span></div>
+            <div class="ticker-item">USD/JPY <span id="usd-jpy">151.4 ▲</span></div>
+            <div class="ticker-item">BTC/USD <span id="btc-usd">64,231 ▲</span></div>
+            <div class="ticker-item">GOLD/OZ <span id="gold-oz">2,320 ▲</span></div>
+        </div>
+    </div>
+
+    <div id="header-container" class="mt-10"></div>
+
+    <main class="max-w-md mx-auto px-6 pt-4 space-y-6">
+        
+        <!-- Welcome & Security Status -->
+        <div class="flex flex-col gap-4">
+            <div class="flex justify-between items-end">
+                <div class="space-y-1">
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Private Banking</p>
+                    <div class="flex items-center gap-2">
+                        <h1 id="user-name-display" class="text-2xl font-black text-[#002147]">Loading...</h1>
+                        <div id="kyc-badge" class="hidden"></div>
+                    </div>
+                </div>
+                <div id="account-status-tag" class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-100 text-slate-400">
+                    Checking...
+                </div>
+            </div>
+
+            <!-- Frozen Alert (Hidden by default) -->
+            <div id="frozen-banner" class="hidden bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-start gap-3">
+                <div class="w-8 h-8 bg-rose-500 rounded-full flex items-center justify-center text-white shrink-0">
+                    <i class="fa-solid fa-lock text-xs"></i>
+                </div>
+                <div>
+                    <h4 class="text-xs font-black text-rose-900 uppercase tracking-tight">Account Restricted</h4>
+                    <p class="text-[10px] text-rose-700 leading-relaxed mt-0.5">Some financial features are temporarily locked for your security. Please contact your concierge.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Balance Card -->
+        <div class="bg-[#002147] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl group">
+            <div class="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+            <div class="relative z-10">
+                <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]/80">Available Balance</p>
+                            <button onclick="toggleBalanceVisibility()" class="text-white/40 hover:text-[#D4AF37] transition-colors">
+                                <i id="balance-toggle-icon" class="fa-solid fa-eye-slash text-[10px]"></i>
+                            </button>
+                        </div>
+                        <h2 id="balance-main" class="text-4xl font-black tracking-tight transition-all duration-300">$0.00</h2>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <div class="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-black">USD ACCOUNT</div>
+                        <p id="account-id-display" class="text-[10px] font-mono text-white/40 tracking-tighter">---</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6 border-t border-white/10 pt-6">
+                    <div>
+                        <p class="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Total Assets</p>
+                        <p id="balance-total" class="text-lg font-bold">$0.00</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">Cash Balance</p>
+                        <p id="balance-cash" class="text-lg font-bold">$0.00</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-4 gap-3" id="quick-actions-grid">
+            <a href="deposit.html" class="action-btn flex flex-col items-center gap-2">
+                <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-[#002147] shadow-sm border border-slate-100 hover:bg-slate-50 transition-all"><i class="fa-solid fa-arrow-down-to-bracket text-lg"></i></div>
+                <span class="text-[9px] font-black uppercase text-slate-500">Deposit</span>
+            </a>
+            <a href="withdraw.html" class="action-btn flex flex-col items-center gap-2">
+                <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-[#002147] shadow-sm border border-slate-100 hover:bg-slate-50 transition-all"><i class="fa-solid fa-money-bill-transfer text-lg"></i></div>
+                <span class="text-[9px] font-black uppercase text-slate-500">Withdraw</span>
+            </a>
+            <a href="transfer.html" class="action-btn flex flex-col items-center gap-2">
+                <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-[#002147] shadow-sm border border-slate-100 hover:bg-slate-50 transition-all"><i class="fa-solid fa-paper-plane text-lg"></i></div>
+                <span class="text-[9px] font-black uppercase text-slate-500">Transfer</span>
+            </a>
+            <button onclick="toggleUserChat()" class="flex flex-col items-center gap-2">
+                <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-[#002147] shadow-sm border border-slate-100 relative hover:bg-slate-50 transition-all">
+                    <i class="fa-solid fa-headset text-lg"></i>
+                    <span id="user-unread-count" class="hidden absolute -top-1 -right-1 bg-rose-600 text-white text-[8px] px-1.5 py-0.5 rounded-full font-black border-2 border-white">0</span>
+                </div>
+                <span class="text-[9px] font-black uppercase text-slate-500">Support</span>
+            </button>
+        </div>
+
+        <!-- Crypto Portfolio Section -->
+        <section class="space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-[#002147]">Crypto Portfolio</h3>
+                <div class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">+4.2% Today</div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3">
+                <!-- BTC Card -->
+                <div class="glass-card p-4 rounded-3xl flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-[#f7931a]/10 text-[#f7931a] rounded-xl flex items-center justify-center text-xl"><i class="fa-brands fa-bitcoin"></i></div>
+                        <div>
+                            <p class="text-xs font-black text-slate-800">Bitcoin <span class="text-[9px] text-slate-400 font-bold ml-1">BTC</span></p>
+                            <p class="text-[10px] font-bold text-slate-500" id="btc-holding">0.0000 BTC</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-black text-slate-800" id="btc-value">$0.00</p>
+                        <svg class="w-12 h-4 ml-auto mt-1" viewBox="0 0 100 30"><path class="crypto-sparkline" d="M0,25 L20,20 L40,28 L60,10 L80,15 L100,5" /></svg>
+                    </div>
+                </div>
+                <!-- ETH Card -->
+                <div class="glass-card p-4 rounded-3xl flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-[#627eea]/10 text-[#627eea] rounded-xl flex items-center justify-center text-xl"><i class="fa-brands fa-ethereum"></i></div>
+                        <div>
+                            <p class="text-xs font-black text-slate-800">Ethereum <span class="text-[9px] text-slate-400 font-bold ml-1">ETH</span></p>
+                            <p class="text-[10px] font-bold text-slate-500" id="eth-holding">0.0000 ETH</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-black text-slate-800" id="eth-value">$0.00</p>
+                        <svg class="w-12 h-4 ml-auto mt-1" viewBox="0 0 100 30"><path class="crypto-sparkline" d="M0,10 L20,15 L40,5 L60,12 L80,8 L100,2" /></svg>
+                    </div>
+                </div>
+                <!-- Stablecoins -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="glass-card p-4 rounded-3xl">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-dollar-sign"></i></div>
+                            <span class="text-[10px] font-black text-slate-800">USDT</span>
+                        </div>
+                        <p class="text-xs font-black text-slate-800" id="usdt-value">$0.00</p>
+                    </div>
+                    <div class="glass-card p-4 rounded-3xl">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-dollar-sign"></i></div>
+                            <span class="text-[10px] font-black text-slate-800">USDC</span>
+                        </div>
+                        <p class="text-xs font-black text-slate-800" id="usdc-value">$0.00</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Trust Bank Shares -->
+        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-[#D4AF37]">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black uppercase text-slate-400">Trust Bank Corp (TRST)</p>
+                        <p class="font-black text-[#002147]">$142.50 <span class="text-emerald-500 ml-1 text-xs">+2.40%</span></p>
+                    </div>
+                </div>
+                <svg class="w-16 h-8" viewBox="0 0 100 30">
+                    <path class="sparkline" d="M0,25 L10,22 L20,28 L30,15 L40,18 L50,5 L60,12 L70,8 L80,15 L90,10 L100,2" />
+                </svg>
+            </div>
+            <button class="w-full bg-slate-50 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-[#002147] hover:bg-[#D4AF37] hover:text-white transition-all">Trade Internal Shares</button>
+        </div>
+
+        <!-- Activity -->
+        <section>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-[#002147]">Recent Activity</h3>
+                <a href="transactions.html" class="text-[9px] font-black uppercase tracking-widest text-[#D4AF37]">View All</a>
+            </div>
+            <div id="recent-transactions" class="space-y-3"></div>
+        </section>
+    </main>
+
+    <!-- CHAT DOCK -->
+    <div id="user-chat-dock">
+        <div class="chat-header">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span class="text-[10px] font-black uppercase tracking-widest">Live Concierge</span>
+            </div>
+            <button onclick="toggleUserChat()" class="opacity-60 hover:opacity-100 transition-opacity"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="user-msg-flow" class="flex-1 overflow-y-auto p-4 flex flex-col gap-1 bg-slate-50"></div>
+        <div class="chat-input-area">
+            <input type="text" id="user-chat-input" placeholder="Type a message..." class="flex-1 bg-slate-100 border-none rounded-xl px-4 py-3 text-xs text-[#002147] outline-none ring-0 focus:ring-1 focus:ring-[#D4AF37]/50">
+            <button onclick="sendUserMessage()" class="w-10 h-10 bg-[#002147] text-[#D4AF37] rounded-xl flex items-center justify-center transition-transform active:scale-95"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <div id="nav-container"></div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { collection, query, where, orderBy, limit, onSnapshot, doc, setDoc, addDoc, serverTimestamp, updateDoc, increment, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { renderHeader, renderBottomNav } from './components.js';
+        import { formatCurrency, formatDate } from './utils.js';
+
+        let userUid = null;
+        let userData = null;
+        let balanceIsHidden = false;
+        let rawBalance = 0;
+        let rawTotal = 0;
+
+        // Toggle Balance Visibility
+        window.toggleBalanceVisibility = () => {
+            balanceIsHidden = !balanceIsHidden;
+            const balEl = document.getElementById('balance-main');
+            const totEl = document.getElementById('balance-total');
+            const icon = document.getElementById('balance-toggle-icon');
+
+            if(balanceIsHidden) {
+                balEl.innerText = "••••••••";
+                totEl.innerText = "••••••••";
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            } else {
+                balEl.innerText = formatCurrency(rawBalance);
+                totEl.innerText = formatCurrency(rawTotal);
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            }
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) { window.location.href = "login.html"; return; }
+            userUid = user.uid;
+
+            document.getElementById('header-container').innerHTML = renderHeader(`Trust Bank`);
+            document.getElementById('nav-container').innerHTML = renderBottomNav('dashboard');
+
+            // --- USER DATA & ACCOUNT STATUS ---
+            onSnapshot(doc(db, "users", user.uid), (snap) => {
+                const data = snap.data();
+                if(data) {
+                    userData = data;
+                    document.getElementById('user-name-display').innerText = `Hello, ${data.fullName.split(' ')[0]}`;
+                    
+                    if(data.accountNumber) {
+                        document.getElementById('account-id-display').innerText = `ACC: ${data.accountNumber}`;
+                    }
+
+                    // Status Logic
+                    const statusTag = document.getElementById('account-status-tag');
+                    const frozenBanner = document.getElementById('frozen-banner');
+                    const actions = document.querySelectorAll('.action-btn');
+                    
+                    const accountStatus = data.accountStatus || data.status || 'ACTIVE';
+                    
+                    statusTag.innerText = accountStatus;
+                    
+                    if (accountStatus === 'FROZEN' || accountStatus === 'RESTRICTED') {
+                        statusTag.className = "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-rose-100 text-rose-600 border border-rose-200";
+                        frozenBanner.classList.remove('hidden');
+                        actions.forEach(a => {
+                            a.style.opacity = '0.4';
+                            a.style.pointerEvents = 'none';
+                            a.classList.add('grayscale');
+                        });
+                    } else if (accountStatus === 'PENDING') {
+                        statusTag.className = "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-600 border border-amber-200";
+                    } else {
+                        statusTag.className = "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-600 border border-emerald-200";
+                    }
+
+                    // KYC Badge
+                    const badge = document.getElementById('kyc-badge');
+                    const kycStatus = data.kycStatus || 'NONE';
+                    if (kycStatus === 'VERIFIED') {
+                        badge.className = "flex items-center justify-center w-5 h-5 bg-emerald-500 text-white rounded-full text-[10px]";
+                        badge.innerHTML = `<i class="fa-solid fa-check"></i>`;
+                        badge.classList.remove('hidden');
+                    } else if (kycStatus === 'PENDING') {
+                        badge.className = "flex items-center justify-center w-5 h-5 bg-amber-400 text-white rounded-full text-[10px] animate-pulse";
+                        badge.innerHTML = `<i class="fa-solid fa-clock"></i>`;
+                        badge.classList.remove('hidden');
+                    } else { badge.classList.add('hidden'); }
+                }
+            });
+
+            // Chat & Bank Data
+            onSnapshot(doc(db, "supportTickets", user.uid), snap => {
+                const ticket = snap.data();
+                const badge = document.getElementById('user-unread-count');
+                if (ticket && ticket.unreadUserCount > 0) {
+                    badge.innerText = ticket.unreadUserCount;
+                    badge.classList.remove('hidden');
+                } else { badge.classList.add('hidden'); }
+            });
+
+            onSnapshot(query(collection(db, "supportTickets", user.uid, "messages"), orderBy("timestamp", "asc")), snap => {
+                const flow = document.getElementById('user-msg-flow');
+                flow.innerHTML = snap.docs.map(d => {
+                    const m = d.data(); const isMe = m.senderRole === 'user';
+                    return `<div class="msg-bubble ${isMe ? 'msg-user' : 'msg-admin'} shadow-sm">${m.text}</div>`;
+                }).join('');
+                flow.scrollTop = flow.scrollHeight;
+            });
+
+            // Crypto Listeners (Placeholder - will update if collection exists)
+            onSnapshot(doc(db, "cryptoAccounts", user.uid), (snap) => {
+                const c = snap.data();
+                if(c) {
+                    document.getElementById('btc-holding').innerText = `${c.btcAmount || '0.0000'} BTC`;
+                    document.getElementById('btc-value').innerText = formatCurrency(c.btcValueUsd || 0);
+                    document.getElementById('eth-holding').innerText = `${c.ethAmount || '0.0000'} ETH`;
+                    document.getElementById('eth-value').innerText = formatCurrency(c.ethValueUsd || 0);
+                    document.getElementById('usdt-value').innerText = formatCurrency(c.usdtValue || 0);
+                    document.getElementById('usdc-value').innerText = formatCurrency(c.usdcValue || 0);
+                }
+            });
+
+            onSnapshot(query(collection(db, "accounts"), where("ownerUid", "==", user.uid)), (snap) => {
+                if (!snap.empty) {
+                    const acc = snap.docs[0].data();
+                    rawBalance = acc.availableBalance;
+                    rawTotal = acc.totalBalance;
+                    
+                    if(!balanceIsHidden) {
+                        document.getElementById('balance-main').innerText = formatCurrency(acc.availableBalance, acc.currency);
+                        document.getElementById('balance-total').innerText = formatCurrency(acc.totalBalance, acc.currency);
+                        document.getElementById('balance-cash').innerText = formatCurrency(acc.availableBalance, acc.currency);
+                    }
+                }
+            });
+
+            onSnapshot(query(collection(db, "transactions"), where("uid", "==", user.uid), orderBy("timestamp", "desc"), limit(5)), (snap) => {
+                const cont = document.getElementById('recent-transactions');
+                if (snap.empty) { cont.innerHTML = `<p class="text-center py-8 text-xs text-slate-400 font-bold uppercase tracking-widest">No transaction history</p>`; return; }
+                cont.innerHTML = snap.docs.map(tDoc => {
+                    const t = tDoc.data();
+                    const isCredit = t.direction === 'credit';
+                    const status = t.status || 'Completed';
+                    return `<div class="flex items-center justify-between p-4 bg-white rounded-3xl border border-slate-50 shadow-sm transition-transform active:scale-[0.98]">
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 ${isCredit ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-[#002147]'} rounded-2xl flex items-center justify-center">
+                                <i class="fa-solid ${isCredit ? 'fa-arrow-down-left' : 'fa-arrow-up-right'} text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-[11px] font-black text-[#002147] leading-none mb-1">${t.type || 'Transfer'}</p>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-[9px] font-bold text-slate-400 uppercase">${formatDate(t.timestamp)}</p>
+                                    <span class="text-[8px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-black uppercase">${status}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-sm font-black ${isCredit ? 'text-emerald-600' : 'text-slate-900'}">${isCredit ? '+' : '-'}${formatCurrency(t.amount)}</p>
+                    </div>`;
+                }).join('');
+            });
+        });
+
+        window.toggleUserChat = () => {
+            const dock = document.getElementById('user-chat-dock');
+            const isOpening = dock.style.display !== 'flex';
+            dock.style.display = isOpening ? 'flex' : 'none';
+            if (isOpening && userUid) {
+                updateDoc(doc(db, "supportTickets", userUid), { unreadUserCount: 0 }).catch(() => {});
+            }
+        };
+
+        window.sendUserMessage = async () => {
+            const input = document.getElementById('user-chat-input');
+            const text = input.value.trim();
+            if (!text || !userUid) return;
+            input.value = "";
+            const ticketRef = doc(db, "supportTickets", userUid);
+            await setDoc(ticketRef, {
+                uid: userUid,
+                userName: userData?.fullName || "Client",
+                lastMessage: text,
+                lastTimestamp: serverTimestamp(),
+                unreadAdminCount: increment(1),
+                status: 'OPEN'
+            }, { merge: true });
+            await addDoc(collection(db, "supportTickets", userUid, "messages"), {
+                text, senderRole: 'user', timestamp: serverTimestamp()
+            });
+        };
+    </script>
+</body>
+</html>

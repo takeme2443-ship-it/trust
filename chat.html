@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Concierge | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
+        body { font-family: 'Public Sans', sans-serif; background-color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .msg-bubble { max-width: 80%; padding: 14px 18px; font-size: 14px; line-height: 1.5; position: relative; animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .msg-user { background: #002147; color: white; align-self: flex-end; border-radius: 20px 20px 4px 20px; box-shadow: 0 4px 15px rgba(0, 33, 71, 0.15); }
+        .msg-admin { background: white; color: #1e293b; align-self: flex-start; border-radius: 20px 20px 20px 4px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03); }
+        #chat-flow { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+        .date-divider { display: flex; align-items: center; text-align: center; margin: 20px 0; color: #94a3b8; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+        .date-divider::before, .date-divider::after { content: ''; flex: 1; border-bottom: 1px solid #e2e8f0; }
+        .date-divider:not(:empty)::before { margin-right: 1em; }
+        .date-divider:not(:empty)::after { margin-left: 1em; }
+        .input-area { position: sticky; bottom: 0; background: white; z-index: 100; }
+    </style>
+</head>
+<body>
+    <header class="bg-white border-b border-slate-200 p-5 flex items-center justify-between z-50 shadow-sm">
+        <div class="flex items-center gap-4">
+            <a href="dashboard.html" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100"><i class="fa-solid fa-chevron-left"></i></a>
+            <div class="relative">
+                <img src="https://ui-avatars.com/api/?name=Trust+Support&background=002147&color=D4AF37&bold=true" class="w-11 h-11 rounded-full border-2 border-slate-50">
+                <div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
+            </div>
+            <div>
+                <h2 class="text-sm font-black text-[#002147] leading-none">Trust Concierge</h2>
+                <p class="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-1">Live Support Active</p>
+            </div>
+        </div>
+    </header>
+
+    <main id="chat-flow"></main>
+
+    <div class="p-5 input-area border-t border-slate-200">
+        <div class="max-w-3xl mx-auto flex items-center gap-3 bg-slate-50 p-2 rounded-[1.5rem] border border-slate-200 focus-within:border-[#002147]">
+            <input type="text" id="chat-input" placeholder="Type your message here..." class="flex-1 bg-transparent border-none focus:ring-0 text-sm font-bold text-[#002147] px-4 py-2">
+            <button id="send-btn" class="w-12 h-12 bg-[#002147] text-[#D4AF37] rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all">
+                <i class="fa-solid fa-paper-plane text-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { collection, doc, onSnapshot, addDoc, updateDoc, serverTimestamp, query, orderBy, setDoc, increment, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+        let userUid = null;
+        let userName = "";
+        let userEmail = "";
+
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) return window.location.href = 'login.html';
+            userUid = user.uid;
+            const uSnap = await getDoc(doc(db, "users", userUid));
+            if(uSnap.exists()) {
+                userName = uSnap.data().fullName;
+                userEmail = uSnap.data().email;
+            }
+            // Reset unread count when user enters chat
+            await updateDoc(doc(db, "supportTickets", userUid), { unreadUserCount: 0 }).catch(()=>{});
+            initChat();
+        });
+
+        function initChat() {
+            const flow = document.getElementById('chat-flow');
+            const q = query(collection(db, "supportTickets", userUid, "messages"), orderBy("timestamp", "asc"));
+            onSnapshot(q, (snap) => {
+                flow.innerHTML = "";
+                let lastDate = "";
+                snap.docs.forEach(d => {
+                    const m = d.data();
+                    const isMe = m.senderRole === 'user';
+                    const msgDate = m.timestamp ? new Date(m.timestamp.toDate()).toLocaleDateString() : "Today";
+                    if (msgDate !== lastDate) {
+                        flow.innerHTML += `<div class="date-divider">${msgDate === new Date().toLocaleDateString() ? 'Today' : msgDate}</div>`;
+                        lastDate = msgDate;
+                    }
+                    const time = m.timestamp ? new Date(m.timestamp.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                    flow.innerHTML += `
+                        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-1">
+                            <div class="msg-bubble ${isMe ? 'msg-user' : 'msg-admin'}">
+                                ${m.text}
+                                <div class="text-[8px] mt-2 opacity-50 font-bold ${isMe ? 'text-right' : ''}">${time}</div>
+                            </div>
+                        </div>`;
+                });
+                flow.scrollTop = flow.scrollHeight;
+            });
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const btn = document.getElementById('send-btn');
+            const text = input.value.trim();
+            if (!text || !userUid || btn.disabled) return;
+            
+            btn.disabled = true;
+            input.value = "";
+
+            try {
+                await setDoc(doc(db, "supportTickets", userUid), {
+                    uid: userUid, userName, email: userEmail,
+                    lastMessage: text, lastTimestamp: serverTimestamp(),
+                    unreadAdminCount: increment(1), status: 'OPEN'
+                }, { merge: true });
+
+                await addDoc(collection(db, "supportTickets", userUid, "messages"), {
+                    text, senderRole: 'user', timestamp: serverTimestamp()
+                });
+            } catch (err) { console.error(err); }
+            finally { btn.disabled = false; }
+        }
+
+        document.getElementById('send-btn').onclick = sendMessage;
+        document.getElementById('chat-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    </script>
+</body>
+</html>

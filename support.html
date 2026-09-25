@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SBA | Support Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&display=swap');
+        :root { --sba-blue: #002e6d; --sba-red: #cc0000; --sba-gold: #b69121; --gov-bg: #f1f5f9; }
+        
+        body { background: var(--gov-bg); margin: 0; font-family: 'Public Sans', sans-serif; color: #001a3d; padding-bottom: 100px; }
+        .gov-top { background: #000; color: #fff; font-size: 8px; font-weight: 900; text-align: center; padding: 8px; letter-spacing: 2px; text-transform: uppercase; border-bottom: 3px solid var(--sba-gold); }
+
+        /* STANDARD OF 3: FLOATING DOCK STYLES */
+        #sba-chat-dock {
+            position: fixed;
+            bottom: 20px; 
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background: white;
+            z-index: 1000;
+            display: none; /* Triggered by button or card */
+            flex-direction: column;
+            box-shadow: 0 15px 50px rgba(0,46,109,0.3);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid #e2e8f0;
+            transition: transform 0.3s ease;
+        }
+        #sba-chat-dock.minimized { transform: translateY(445px); }
+        
+        .dock-banner { background: var(--sba-blue); color: white; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .chat-body { flex: 1; padding: 15px; overflow-y: auto; background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+        .bubble { padding: 12px; border-radius: 10px; font-size: 12px; line-height: 1.4; max-width: 85%; }
+        .bubble-agent { background: #f8fafc; border-left: 4px solid var(--sba-gold); border: 1px solid #e2e8f0; align-self: flex-start; }
+        .bubble-user { background: var(--sba-blue); color: white; align-self: flex-end; }
+
+        .status-card { background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 15px; margin: 20px; display: flex; align-items: center; gap: 15px; cursor: pointer; }
+        .tag { font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; }
+        .tag-red { background: #fee2e2; color: #b91c1c; }
+        .tag-green { background: #dcfce7; color: #15803d; }
+    </style>
+</head>
+<body>
+
+    <div class="gov-top"><i class="fas fa-shield-alt mr-2"></i> SBA Secure Node 44-B</div>
+
+    <main class="max-w-lg mx-auto pt-10">
+        <div class="px-5 mb-6">
+            <h1 class="text-2xl font-black text-[#002e6d] uppercase">SBA Support</h1>
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">Federal Grant Assistance</p>
+        </div>
+
+        <!-- Trigger Card -->
+        <div class="status-card" onclick="openSbaDock()">
+            <div class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-[#002e6d] border border-slate-200">
+                <i class="fas fa-comments text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Live Assistance</p>
+                <p class="text-[14px] font-black text-[#002e6d] uppercase">Chat with Officer Miller</p>
+            </div>
+            <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+        </div>
+
+        <!-- Registry Status Card -->
+        <div class="status-card" onclick="location.href='kyc.html'">
+            <div class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-[#002e6d] border border-slate-200">
+                <i class="fas fa-fingerprint text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Identity Status</p>
+                <p class="text-[14px] font-black text-[#002e6d] uppercase" id="vText">Identifying...</p>
+            </div>
+            <span class="tag" id="vTag">---</span>
+        </div>
+    </main>
+
+    <!-- STANDARD OF 3: THE SBA FLOATING DOCK -->
+    <div id="sba-chat-dock">
+        <div class="dock-banner" onclick="toggleDock()">
+            <div class="flex items-center gap-3">
+                <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=120" class="w-8 h-8 rounded object-cover border border-white/20">
+                <div>
+                    <p class="text-[10px] font-black uppercase leading-none">Officer Sarah Miller</p>
+                    <p class="text-[8px] font-bold text-white/60 uppercase">Compliance Agent</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <i class="fas fa-minus text-xs"></i>
+                <i class="fas fa-times text-sm" onclick="closeDock(event)"></i>
+            </div>
+        </div>
+
+        <div class="chat-body" id="chatBody"></div>
+
+        <div class="p-3 border-t-2 border-slate-100 bg-[#f8fafc]">
+            <div id="imgPreview" class="hidden justify-between items-center bg-amber-500 text-white text-[10px] p-2 rounded mb-2 font-bold">
+                <span><i class="fas fa-paperclip mr-2"></i> DOCUMENT READY</span>
+                <i class="fas fa-times cursor-pointer" onclick="clearImg()"></i>
+            </div>
+            <div class="flex items-center gap-2 bg-white border-2 border-slate-200 rounded-lg p-1">
+                <input type="file" id="fileInp" class="hidden" accept="image/*">
+                <label for="fileInp" class="p-2 text-slate-400 cursor-pointer"><i class="fas fa-paperclip"></i></label>
+                <input type="text" id="msgInp" placeholder="Enter message..." class="flex-1 border-none outline-none text-sm font-bold text-[#002e6d]">
+                <button id="sendBtn" class="bg-[#002e6d] text-white w-9 h-9 rounded flex items-center justify-center"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { doc, onSnapshot, updateDoc, collection, query, orderBy, setDoc, addDoc, serverTimestamp, increment, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+        const chatBody = document.getElementById('chatBody');
+        const msgInp = document.getElementById('msgInp');
+        const sendBtn = document.getElementById('sendBtn');
+        const fileInp = document.getElementById('fileInp');
+        let base64Img = null;
+        let msgUnsubscribe = null;
+
+        window.clearImg = () => { base64Img = null; document.getElementById('imgPreview').style.display = 'none'; fileInp.value = ''; };
+
+        fileInp.onchange = (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => { base64Img = ev.target.result; document.getElementById('imgPreview').style.display = 'flex'; };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) return window.location.href = 'login.html';
+
+            // 1. User/KYC Status Listener
+            onSnapshot(doc(db, "users", user.uid), (snap) => {
+                const data = snap.data();
+                if(!data) return;
+                const isVerified = ["VERIFIED", "APPROVED"].includes(data.kycStatus);
+                document.getElementById('vTag').innerText = isVerified ? "Certified" : "Action Required";
+                document.getElementById('vTag').className = isVerified ? "tag tag-green" : "tag tag-red";
+                document.getElementById('vText').innerText = isVerified ? "Registry Confirmed" : "Identity Unverified";
+            });
+
+            // 2. Open Chat Function (Triggered by user)
+            window.openSbaDock = () => {
+                const dock = document.getElementById('sba-chat-dock');
+                dock.style.display = 'flex';
+                dock.classList.remove('minimized');
+                
+                // Clear user unread count when they open the chat
+                updateDoc(doc(db, "supportTickets", user.uid), { unreadUserCount: 0 }).catch(()=>{});
+
+                if(msgUnsubscribe) msgUnsubscribe();
+
+                const q = query(collection(db, "supportTickets", user.uid, "messages"), orderBy("timestamp", "asc"));
+                msgUnsubscribe = onSnapshot(q, (snap) => {
+                    chatBody.innerHTML = `<div class="bubble bubble-agent"><b>Officer Miller:</b> Hello. Please state your inquiry clearly for our federal audit logs.</div>`;
+                    
+                    snap.docs.forEach(d => {
+                        const m = d.data();
+                        const isMe = m.senderRole === 'user';
+                        chatBody.innerHTML += `
+                            <div class="bubble ${isMe ? 'bubble-user' : 'bubble-agent'}">
+                                ${m.text ? `<p>${m.text}</p>` : ''}
+                                ${m.image ? `<img src="${m.image}" class="mt-2 rounded max-w-full">` : ''}
+                                <div class="text-[7px] mt-1 opacity-50 ${isMe ? 'text-right' : ''}">
+                                    ${m.timestamp ? new Date(m.timestamp.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...'}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                });
+            };
+
+            // 3. Send Message Logic
+            sendBtn.onclick = async () => {
+                const text = msgInp.value.trim();
+                if(!text && !base64Img) return;
+
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                const fullName = userDoc.exists() ? userDoc.data().fullName : "Applicant";
+
+                // Metadata update for Admin Portal
+                await setDoc(doc(db, "supportTickets", user.uid), {
+                    uid: user.uid, userName: fullName, lastMessage: text || "Attachment sent",
+                    lastTimestamp: serverTimestamp(), unreadAdminCount: increment(1)
+                }, { merge: true });
+
+                // Add to sub-collection
+                await addDoc(collection(db, "supportTickets", user.uid, "messages"), {
+                    text: text, image: base64Img, senderRole: 'user', timestamp: serverTimestamp()
+                });
+
+                msgInp.value = ""; clearImg();
+            };
+        });
+
+        window.toggleDock = () => document.getElementById('sba-chat-dock').classList.toggle('minimized');
+        window.closeDock = (e) => { e.stopPropagation(); document.getElementById('sba-chat-dock').style.display = 'none'; };
+        msgInp.onkeydown = (e) => { if(e.key === 'Enter') sendBtn.click(); };
+    </script>
+</body>
+</html>

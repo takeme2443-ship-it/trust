@@ -1,0 +1,43 @@
+/* --- NEW CODE ADDED HERE: Modern Fintech & Chat Styles --- */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.chat-bubble-user {
+    background: linear-gradient(135deg, #002147 0%, #003a7d 100%);
+    color: white;
+    border-radius: 20px 20px 4px 20px;
+    box-shadow: 0 4px 15px rgba(0, 33, 71, 0.2);
+}
+
+.chat-bubble-admin {
+    background: #f1f5f9;
+    color: #1e293b;
+    border-radius: 20px 20px 20px 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.typing-dot {
+    width: 6px; height: 6px; background: #94a3b8; border-radius: 50%;
+    animation: typingPulse 1.4s infinite ease-in-out;
+}
+@keyframes typingPulse {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+.balance-hidden { filter: blur(8px); }
+
+.card-gradient {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    position: relative;
+    overflow: hidden;
+}
+.card-gradient::after {
+    content: ''; position: absolute; top: -50%; right: -20%;
+    width: 200px; height: 200px; background: rgba(212, 175, 55, 0.1);
+    filter: blur(50px); border-radius: 50%;
+}
+/* --- END NEW CODE --- */

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Settings | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 pb-32">
+    <div id="header-container"></div>
+
+    <main class="max-w-md mx-auto px-6 pt-8 space-y-8">
+        <div class="flex flex-col items-center gap-4">
+            <div class="relative">
+                <img id="profile-img" src="https://ui-avatars.com/api/?background=002147&color=D4AF37&bold=true&name=User" class="w-24 h-24 rounded-full border-4 border-white shadow-xl object-cover">
+                <label for="img-upload" class="absolute bottom-0 right-0 w-8 h-8 bg-[#D4AF37] rounded-full flex items-center justify-center text-[#002147] border-2 border-white cursor-pointer"><i class="fa-solid fa-camera text-xs"></i></label>
+                <input type="file" id="img-upload" class="hidden" accept="image/*">
+            </div>
+            <div class="text-center">
+                <h2 id="display-name" class="text-xl font-black text-[#002147]">---</h2>
+                <p id="display-email" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">---</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden divide-y divide-slate-100">
+            <a href="kyc.html" class="flex items-center justify-between p-6 hover:bg-slate-50">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-black uppercase text-[#002147]">Identity (KYC)</span>
+                    <span id="kyc-status-label" class="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-400">Not Started</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
+            </a>
+            <a href="set-pin.html" class="flex items-center justify-between p-6 hover:bg-slate-50">
+                <span class="text-xs font-black uppercase text-[#002147]">Change Transaction PIN</span>
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
+            </a>
+            <button id="logout-btn" class="w-full flex items-center gap-4 p-6 hover:bg-rose-50 transition-colors">
+                <span class="text-xs font-black uppercase text-rose-500">Sign Out</span>
+            </button>
+        </div>
+    </main>
+
+    <div id="nav-container"></div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { renderHeader, renderBottomNav } from './components.js';
+
+        document.getElementById('header-container').innerHTML = renderHeader('Settings', true);
+        document.getElementById('nav-container').innerHTML = renderBottomNav('settings');
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                onSnapshot(doc(db, "users", user.uid), snap => {
+                    const d = snap.data();
+                    if (!d) return;
+                    document.getElementById('display-name').innerText = d.fullName || "User";
+                    document.getElementById('display-email').innerText = d.email || "";
+                    if (d.profilePhoto) document.getElementById('profile-img').src = d.profilePhoto;
+
+                    // KYC Status Badge logic
+                    const kycLabel = document.getElementById('kyc-status-label');
+                    if (kycLabel) {
+                        const status = d.kycStatus || 'NONE';
+                        if (status === 'VERIFIED') {
+                            kycLabel.innerText = "Verified";
+                            kycLabel.className = "text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500";
+                        } else if (status === 'PENDING') {
+                            kycLabel.innerText = "Pending Review";
+                            kycLabel.className = "text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500";
+                        } else if (status === 'DECLINED') {
+                            kycLabel.innerText = "Declined";
+                            kycLabel.className = "text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500";
+                        } else {
+                            kycLabel.innerText = "Not Started";
+                            kycLabel.className = "text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-400";
+                        }
+                    }
+                });
+            }
+        });
+
+        document.getElementById('logout-btn').onclick = () => auth.signOut().then(() => window.location.href = 'login.html');
+    </script>
+</body>
+</html>

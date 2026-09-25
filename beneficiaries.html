@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beneficiaries | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 pb-32">
+    <div id="header-container"></div>
+    <main class="max-w-md mx-auto px-6 pt-8 space-y-6">
+        <button id="add-btn" class="w-full bg-white border border-slate-200 p-4 rounded-3xl font-black text-[#002147] text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+            <i class="fa-solid fa-plus"></i> Add New Beneficiary
+        </button>
+        <div id="beneficiary-list" class="space-y-4"></div>
+    </main>
+    <div id="nav-container"></div>
+
+    <!-- Modal simplified for brevity -->
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { renderHeader, renderBottomNav, renderEmptyState } from './components.js';
+
+        document.getElementById('header-container').innerHTML = renderHeader('Beneficiaries', true);
+        document.getElementById('nav-container').innerHTML = renderBottomNav('dashboard');
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                const q = query(collection(db, "beneficiaries"), where("uid", "==", user.uid));
+                onSnapshot(q, snap => {
+                    const cont = document.getElementById('beneficiary-list');
+                    if (snap.empty) { cont.innerHTML = renderEmptyState("No saved beneficiaries."); return; }
+                    cont.innerHTML = snap.docs.map(doc => {
+                        const b = doc.data();
+                        return `
+                            <div class="bg-white p-5 rounded-3xl border border-slate-100 flex items-center gap-4">
+                                <div class="w-12 h-12 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center font-bold">
+                                    ${b.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <p class="font-black text-[#002147]">${b.name}</p>
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">${b.bankName} • ${b.accountNumber}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deposit | Trust Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 pb-32">
+    <div id="header-container"></div>
+    <main class="max-w-md mx-auto px-6 pt-8">
+        
+        <!-- Admin Approval Notice -->
+        <div class="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3 items-start">
+            <i class="fa-solid fa-circle-info text-amber-600 mt-1"></i>
+            <div>
+                <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest">Notice</p>
+                <p class="text-xs font-bold text-amber-800">All deposits require manual admin approval before funds are credited to your balance.</p>
+            </div>
+        </div>
+
+        <div id="status-banner-container"></div>
+
+        <form id="deposit-form" class="space-y-6">
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
+                <div class="mb-8">
+                    <label>Amount to Deposit</label>
+                    <input type="number" id="amount" class="w-full" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="mb-8">
+                    <label>Method</label>
+                    <select id="method" class="w-full" required>
+                        <option value="Wire Transfer">Bank Wire Transfer</option>
+                        <option value="Mobile Check">Mobile Check</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Receipt Image</label>
+                    <input type="file" id="proof-file" class="w-full" accept="image/*" required>
+                </div>
+            </div>
+            <button type="submit" id="submit-btn" class="w-full btn-primary h-16 uppercase tracking-widest text-xs">Submit for Admin Approval</button>
+        </form>
+
+        <div id="success-view" class="hidden"></div>
+    </main>
+    <div id="nav-container"></div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { renderHeader, renderBottomNav, renderDeclinedBanner, renderApprovedSuccess } from './components.js';
+        import { compressImage, formatCurrency } from './utils.js';
+        import { withPin } from './pin-guard.js';
+
+        document.getElementById('header-container').innerHTML = renderHeader('Deposit', true);
+        document.getElementById('nav-container').innerHTML = renderBottomNav('dashboard');
+
+        const form = document.getElementById('deposit-form');
+        const bannerCont = document.getElementById('status-banner-container');
+        const successCont = document.getElementById('success-view');
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                const q = query(collection(db, "deposits"), where("uid", "==", user.uid), orderBy("createdAt", "desc"), limit(1));
+                onSnapshot(q, (snap) => {
+                    if (snap.empty) return;
+                    const d = snap.docs[0].data();
+                    bannerCont.innerHTML = "";
+                    form.classList.remove('hidden');
+                    successCont.classList.add('hidden');
+                    
+                    if (d.status === "PENDING") {
+                        form.querySelectorAll('input, select, button').forEach(el => el.disabled = true);
+                        document.getElementById('submit-btn').innerText = "Awaiting Admin Approval...";
+                    } else if (d.status === "DECLINED") {
+                        bannerCont.innerHTML = renderDeclinedBanner(d.declineReason);
+                        form.querySelectorAll('input, select, button').forEach(el => el.disabled = false);
+                        document.getElementById('submit-btn').innerText = "Resubmit for Approval";
+                    } else if (d.status === "APPROVED") {
+                        form.classList.add('hidden');
+                        successCont.classList.remove('hidden');
+                        successCont.innerHTML = renderApprovedSuccess(`Deposit of ${formatCurrency(d.amount)} approved.`, () => location.reload());
+                    }
+                });
+            }
+        });
+
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            withPin(async () => {
+                const btn = document.getElementById('submit-btn');
+                btn.disabled = true;
+                const base64 = await compressImage(document.getElementById('proof-file').files[0]);
+                await addDoc(collection(db, "deposits"), {
+                    uid: auth.currentUser.uid,
+                    amount: parseFloat(document.getElementById('amount').value),
+                    method: document.getElementById('method').value,
+                    proofImage: base64,
+                    status: "PENDING",
+                    createdAt: serverTimestamp()
+                });
+            });
+        };
+    </script>
+</body>
+</html>
